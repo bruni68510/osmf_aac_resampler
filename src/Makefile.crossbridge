@@ -1,0 +1,16 @@
+all : check
+	@echo "-------- aac_resample --------"
+	@echo "-> Generate SWIG wrappers around the functions in the library"
+	"$(FLASCC)/usr/bin/swig" -c++ -as3 -module AACResampler -o AACResampler_wrapper.c aac_resampler.i
+	
+	@echo "-> Compile the SWIG wrapper to ABC"
+	$(AS3COMPILERARGS) -import $(call nativepath,$(FLASCC)/usr/lib/builtin.abc) -import $(call nativepath,$(FLASCC)/usr/lib/playerglobal.abc) AACResampler.as
+	mv AACResampler.as AACResampler.as3
+	
+	@echo "-> Compile the library into a SWC"
+	"$(FLASCC)/usr/bin/g++" -strip-all $(BASE_CFLAGS) AACResampler.abc AACResampler_wrapper.c AACDecompress.cpp AudioResampler.cpp AS3main.cpp -emit-swc=com.bruninet.AACResampler -lfaad -lsndfile -lsamplerate -o AACResampler.swc
+	
+include ../../../Makefile.common
+
+clean:
+	rm -f AACResampler_wrapper.c	
