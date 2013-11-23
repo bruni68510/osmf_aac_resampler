@@ -7,4 +7,6 @@ Compile it either as linux program using automake, autoconf, configure and make.
 
 Or compile it as crossbrige swc using Makefile.crossbridge found under src.
 
+Check the SWIG file aac_resampler.i under for API description.
+
 
