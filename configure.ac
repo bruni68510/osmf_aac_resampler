@@ -21,6 +21,6 @@ AC_CHECK_HEADERS([sndfile.h])
 # Checks for library functions.
 AC_CHECK_LIB([faad], [NeAACDecOpen])
 AC_CHECK_LIB([samplerate], [src_new])
-AC_CHECK_LIB([sndfile], [sf_open_virtual])
+#AC_CHECK_LIB([sndfile], [sf_open_virtual])
 
 AC_OUTPUT

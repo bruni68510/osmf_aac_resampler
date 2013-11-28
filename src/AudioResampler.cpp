@@ -17,41 +17,57 @@ AudioResampler::AudioResampler(int sample_rate_in, int sample_rate_out, int chan
         std::cerr << src_strerror(error);
     }
 
-    // Initialize sndfile
-    virtual_io.read = AudioResampler::vio_read;
-    virtual_io.write = NULL;
-    virtual_io.seek = AudioResampler::vio_seek;
-    virtual_io.tell = AudioResampler::vio_tell;
-    virtual_io.get_filelen = AudioResampler::vio_get_filelen;
 
+}
 
-    sf_info.samplerate = sample_rate_in;
-    sf_info.channels = channels;
-    sf_info.format = SF_FORMAT_RAW | SF_FORMAT_PCM_16;
-    sf_info.seekable = 0;    
-    snd_file = sf_open_virtual(&virtual_io, SFM_READ, &sf_info, this);
+void AudioResampler::pcm_to_float(float *out_float, int size)
+{
+    int i;
+    unsigned char byte1, byte2;
+    unsigned short int sample;
+    short int sample2;
+    float div = (float)1.0/(float)32768.0;
 
-    if (snd_file == NULL) {
-        sf_perror(snd_file);
+    for (i = 0 ; i < size ; i++) {
+       
+        byte1 = internal_buffer.front();
+        internal_buffer.pop();
+
+        byte2 = internal_buffer.front();
+        internal_buffer.pop();
+
+        sample = (unsigned short)(byte2 << 8);
+        sample += byte1;
+        sample2 = sample;
+        
+        out_float[i] = div * (float)sample2;
+    
     }
+}
 
-    SF_INFO sf_info_out;
-    sf_info_out.samplerate = sample_rate_out;
-    sf_info_out.channels = channels;
-    sf_info_out.format = SF_FORMAT_RAW | SF_FORMAT_PCM_16;
-    sf_info_out.seekable = 0;
+void AudioResampler::float_to_pcm(float *in_float, int size)
+{
+    int i;
+    char byte1, byte2;
+    
+    float mul = 32768.0;
 
-    virtual_io_out.read = NULL;
-    virtual_io_out.write = AudioResampler::vio_write;
-    virtual_io_out.seek = AudioResampler::vio_seek;
-    virtual_io_out.tell = AudioResampler::vio_tell;
-    virtual_io_out.get_filelen = AudioResampler::vio_get_filelen;   
-    snd_file_out = sf_open_virtual(&virtual_io_out, SFM_WRITE, &sf_info_out, this);
+    short int tmp;
+    unsigned short int tmp2;
 
-    if (snd_file_out == NULL) {
-        sf_perror(snd_file_out);
+    for (i = 0 ; i < size; i++) {
+        tmp = (int)(mul*in_float[i]);
+        if (tmp < -32768) tmp = -32768;
+        if (tmp > 32767) tmp = 32767;
+        
+        tmp2 = tmp;
+
+        byte1 = (tmp2 & 0xFF);
+        byte2 = ( tmp2 >> 8 ) & 0x00FF;
+
+        output_buffer.push(byte1);
+        output_buffer.push(byte2);
     }
-
 }
 
 void AudioResampler::process()
@@ -59,7 +75,7 @@ void AudioResampler::process()
 
 
     SRC_DATA src_data;
-    sf_count_t sf_count;
+    int sf_count = internal_buffer.size() / 2;
     int i;
     int j = 0;
     short in_short[SAMPLES_PER_STEP];
@@ -70,11 +86,7 @@ void AudioResampler::process()
 
     unsigned char* output;
 
-    sf_count = sf_read_float(snd_file, in_float, internal_buffer.size() / 2);
-
-    if (sf_count < 0) {
-        sf_perror(snd_file);
-    }
+    pcm_to_float(in_float, sf_count);
 
     src_data.data_in = in_float;
     src_data.data_out = out_float;
@@ -91,7 +103,7 @@ void AudioResampler::process()
 
     int samples_out = (int)src_data.output_frames_gen;
     
-    sf_writef_float(snd_file_out, out_float, samples_out / 2);
+    float_to_pcm(out_float, samples_out );
 
 
     //std::cerr << "Resulting samples " << samples_out << "\n";
@@ -129,69 +141,6 @@ unsigned char* AudioResampler::flush(int *written) {
     return result;
 }
 
-/**
- * SNDFILE buffer read function
- */
-sf_count_t AudioResampler::vio_read(void* ptr, sf_count_t count, void *user_data) 
-{
-
-
-    AudioResampler *resampler = (AudioResampler*)user_data;
-
-    //std::cerr << "vio_read, count=" << count << ", buffersize= " << resampler->internal_buffer.size() << "\n";
-
-    unsigned char* cast_ptr = (unsigned char*) ptr;
-
-    int j = 0,i, size = resampler->internal_buffer.size();
-    for (i = 0; i < count && i < size ; i++)
-    {
-        cast_ptr[i] = resampler->internal_buffer.front();
-        resampler->internal_buffer.pop();
-        j++;
-    }
-    return j;
-}
-
-/**
- * SNDFILE buffer write function
- */
-sf_count_t AudioResampler::vio_write(const void* ptr, sf_count_t count, void *user_data)
-{
-    AudioResampler *resampler = (AudioResampler*)user_data;
-
-    unsigned char *cast_ptr = (unsigned char*) ptr;
-    
-    int i;
-
-    for (i = 0; i < count; i++) {
-        resampler->output_buffer.push(cast_ptr[i]);
-    }
-
-    return count;
-}
-/**
- * SNDFILE dummy get file length
- */
-sf_count_t AudioResampler::vio_get_filelen(void *user_data){
-    std::cerr << "Call to dummy get_filelen \n";
-    return 1024*1024*10;
-}
-
-/**
- * SNDFILE dummy seek
- */
-sf_count_t AudioResampler::vio_seek(sf_count_t offset, int whence, void *user_data) {
-    std::cerr << "Call to dummy seek\n";
-    return 0;
-}
-
-/**
- * SNDFILE dummy tell
- */
-sf_count_t AudioResampler::vio_tell(void *user_data){
-    std::cerr << "Call to dummy tell \n";
-    return 0;
-}
 
 /** 
  * Free resources
@@ -199,8 +148,6 @@ sf_count_t AudioResampler::vio_tell(void *user_data){
  
 AudioResampler::~AudioResampler() {
     src_delete(state);
-    sf_close(snd_file);
-    sf_close(snd_file_out);
 }
 /*
 int main(int argc, char**argv)
