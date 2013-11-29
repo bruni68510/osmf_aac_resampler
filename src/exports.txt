@@ -1,0 +1,34 @@
+# built in symbols that must always be preserved
+_start1
+malloc
+free
+memcpy
+memmove
+flascc_uiTickProc
+_sync_synchronize
+
+vglttyioctl 
+__muldi3
+__divdi3
+__moddi3
+_Z23_wrap_new_AACDecompressv
+_Z24_wrap_new_AudioResamplerv
+_Z26_wrap_AudioResampler_flushv
+_Z26_wrap_delete_AACDecompressv
+_Z27_wrap_delete_AudioResamplerv
+_Z28_wrap_AudioResampler_processv
+_Z29_wrap_AACDecompress_terminatev
+_Z30_wrap_AACDecompress_decompressv
+_Z30_wrap_AudioResampler_bufferizev
+_Z32_wrap_AACDecompress_channels_getv
+_Z32_wrap_AACDecompress_channels_setv
+_Z34_wrap_AACDecompress_samplerate_getv
+_Z34_wrap_AACDecompress_samplerate_setv
+
+
+# symbols for C++ exception handling
+_Unwind_SjLj_Register
+_Unwind_SjLj_Resume
+_Unwind_SjLj_Unregister
+_Unwind_SjLj_RaiseException
+
